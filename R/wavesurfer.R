@@ -1,3 +1,14 @@
+library(htmlwidgets)
+library(magrittr)
+library(htmltools)
+library(jsonlite)
+library(methods)
+library(shiny)
+library(tidyr)
+library(tibble)
+library(shinyjs)
+library(shinyWidgets)
+
 #' Create a soundwave visualization
 #'
 #' \code{wavesurfer} is an interactive soundwave player and visualizer with rich set of
@@ -378,12 +389,14 @@ runExample <- function(example = c("annotator", "microphone", "plugins", "decora
 #'
 #' @import shiny
 #' @export
-annotator_app <- function(wavs_folder, annotations_folder = getwd(), labels = NULL) {
+annotator_app <- function(wavs_folder, video_folder, annotations_folder = getwd(),
+                          labels = NULL) {
   wavs_folder <- normalizePath(wavs_folder) # system.file("wav", package = "wavesurfer")
   annotation_folder <- normalizePath(annotations_folder) #tempdir()
 
   # make it available to shiny
   shiny::addResourcePath("wav", wavs_folder)
+  shiny::addResourcePath("videos", video_folder)
 
   ui <- fluidPage(
     tags$head(
@@ -399,6 +412,10 @@ annotator_app <- function(wavs_folder, annotations_folder = getwd(), labels = NU
         width = 12,
         tags$p(tags$strong("Wavs Folder:"), wavs_folder),
         tags$p(tags$strong("Annotations Folder:"), annotation_folder)
+      ),
+      column(
+        width = 12,
+        uiOutput("video_ui"),
       ),
       column(
         width = 12,
@@ -429,7 +446,7 @@ annotator_app <- function(wavs_folder, annotations_folder = getwd(), labels = NU
           tags$div(
             style = "display: inline-block;",
             shinyWidgets::dropdownButton(
-              circle = FALSE, status = "success", icon = icon("gear"), size = "default",
+              circle = FALSE, status = "success", icon = icon("cog"), size = "default",
               tags$h4("Setup"),
               sliderInput("wl", "Window Length: ", 64, 1024, 512, 2),
               sliderInput("ovlp", "Overlap: ", 0, 50, 50, 2, post = "%"),
@@ -495,6 +512,12 @@ annotator_app <- function(wavs_folder, annotations_folder = getwd(), labels = NU
       shiny::p(shiny::strong("Current audio: "), selected_audio())
     })
 
+    output$video_ui <- renderUI({
+      shiny::tags$video(type = "video/mp4",
+                      src = paste0("videos/", substr(selected_audio(), 1, 29), ".mp4"),
+                      width = "50%", style="pointer-events: none;", id = "video2")
+    })
+
     output$my_ws <- renderWavesurfer({
       req(!is.null(selected_audio()))
 
@@ -519,7 +542,8 @@ annotator_app <- function(wavs_folder, annotations_folder = getwd(), labels = NU
     })
 
     # controllers
-    observeEvent(input$play, ws_play("my_ws"))
+    observeEvent(input$play, ws_play("my_ws")) #ws_play
+    #observeEvent(input$play, "document.getElementById('video_ui').play())"
     observeEvent(input$pause, ws_pause("my_ws"))
     observeEvent(input$mute, ws_toggle_mute("my_ws"))
     observeEvent(input$skip_forward, ws_skip_forward("my_ws", 3))
@@ -682,3 +706,9 @@ annotator_app <- function(wavs_folder, annotations_folder = getwd(), labels = NU
   # Run the application
   shinyApp(ui = ui, server = server, options = list(launch.browser = TRUE))
 }
+
+annotator_app(
+  wavs_folder = "/Users/greglanzalotto/Documents/BWC/Audio",
+  video_folder = "/Users/greglanzalotto/Documents/BWC/Video",
+  annotations_folder = tempdir()
+)
